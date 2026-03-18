@@ -59,6 +59,40 @@ $ npm run test:cov
 
 ## Deployment
 
+### Deploy to Render (for this project)
+
+This backend is ready to deploy as a Render Web Service.
+
+1. Push this `backend` code to GitHub.
+2. In Render, create a PostgreSQL instance.
+3. Create a new Web Service and connect your repository.
+4. Set **Root Directory** to `backend`.
+5. Use these commands:
+
+```bash
+Build Command: npm ci && npm run build && npm run prisma:migrate
+Start Command: npm run start:prod
+```
+
+6. Add environment variables in Render:
+
+```bash
+DATABASE_URL=<your-render-postgres-external-url>
+JWT_SECRET=<long-random-secret>
+ALLOWED_ORIGINS=https://your-frontend.vercel.app
+NODE_ENV=production
+```
+
+7. In Vercel (frontend), set:
+
+```bash
+NEXT_PUBLIC_API_URL=https://your-render-service.onrender.com
+```
+
+Notes:
+- `prisma:migrate` in this project uses `prisma db push` for fast deployment setup.
+- If you move to strict migration workflow later, switch build command to `npm run prisma:migrate:deploy` after creating PostgreSQL migrations.
+
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
 If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:

@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  phone     String?
+  role      String   @default("USER") // USER, ADMIN, MANAGER
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tickets Ticket[]
+}
+
+model Bus {
+  id        String   @id @default(uuid())
+  type      String // e.g. VIP, Air-conditioned 1st Class
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trips Trip[]
+}
+
+model Trip {
+  id            String   @id @default(uuid())
+  price         Decimal
+  departureTime DateTime
+  arrivalTime   DateTime
+  busId         String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  bus     Bus      @relation(fields: [busId], references: [id])
+  tickets Ticket[]
+}
+
+model Ticket {
+  id          String   @id @default(uuid())
+  bookingDate DateTime @default(now())
+  seatNumber  String
+  userId      String
+  tripId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  trip     Trip      @relation(fields: [tripId], references: [id])
+  payments Payment[]
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  amount      Decimal
+  method      String // Mobile Banking, Credit Card
+  status      String // Success, Pending
+  paymentDate DateTime @default(now())
+  ticketId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+}
