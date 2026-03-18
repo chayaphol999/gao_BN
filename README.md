@@ -70,7 +70,7 @@ This backend is ready to deploy as a Render Web Service.
 5. Use these commands:
 
 ```bash
-Build Command: npm ci && npm run build && npm run prisma:migrate
+Build Command: npm ci --legacy-peer-deps && npm run build && npm run prisma:migrate
 Start Command: npm run start:prod
 ```
 
