@@ -17,6 +17,115 @@ let TripService = class TripService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    async onModuleInit() {
+        await this.ensureDailyTrips();
+    }
+    startOfDay(date = new Date()) {
+        const d = new Date(date);
+        d.setHours(0, 0, 0, 0);
+        return d;
+    }
+    endOfDay(date = new Date()) {
+        const d = new Date(date);
+        d.setHours(23, 59, 59, 999);
+        return d;
+    }
+    randomInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+    randomPrice() {
+        const raw = this.randomInt(450, 990);
+        return Math.round(raw / 10) * 10;
+    }
+    createRandomDepartureTimesForToday(count) {
+        const start = this.startOfDay();
+        const usedHours = new Set();
+        const times = [];
+        while (times.length < count) {
+            const hour = this.randomInt(6, 22);
+            if (usedHours.has(hour)) {
+                continue;
+            }
+            usedHours.add(hour);
+            const dt = new Date(start);
+            dt.setHours(hour, 0, 0, 0);
+            times.push(dt);
+        }
+        return times.sort((a, b) => a.getTime() - b.getTime());
+    }
+    async ensureDefaultBuses() {
+        const buses = await this.prisma.bus.findMany({
+            select: { id: true, type: true },
+            orderBy: { createdAt: 'asc' },
+        });
+        if (buses.length > 0) {
+            return buses;
+        }
+        await this.prisma.bus.createMany({
+            data: [
+                { type: 'VIP 24 Seats' },
+                { type: 'Air-conditioned 1st Class' },
+                { type: 'Express 40 Seats' },
+            ],
+        });
+        return this.prisma.bus.findMany({
+            select: { id: true, type: true },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
+    async removePastTrips() {
+        const dayStart = this.startOfDay();
+        await this.prisma.payment.deleteMany({
+            where: {
+                ticket: {
+                    trip: {
+                        departureTime: { lt: dayStart },
+                    },
+                },
+            },
+        });
+        await this.prisma.ticket.deleteMany({
+            where: {
+                trip: {
+                    departureTime: { lt: dayStart },
+                },
+            },
+        });
+        await this.prisma.trip.deleteMany({
+            where: {
+                departureTime: { lt: dayStart },
+            },
+        });
+    }
+    async ensureDailyTrips() {
+        await this.removePastTrips();
+        const todayTripsCount = await this.prisma.trip.count({
+            where: {
+                departureTime: {
+                    gte: this.startOfDay(),
+                    lte: this.endOfDay(),
+                },
+            },
+        });
+        if (todayTripsCount >= 10) {
+            return;
+        }
+        const buses = await this.ensureDefaultBuses();
+        const departures = this.createRandomDepartureTimesForToday(10 - todayTripsCount);
+        const payload = departures.map((departureTime) => {
+            const durationHours = this.randomInt(8, 14);
+            const arrivalTime = new Date(departureTime);
+            arrivalTime.setHours(arrivalTime.getHours() + durationHours);
+            const bus = buses[this.randomInt(0, buses.length - 1)];
+            return {
+                price: this.randomPrice(),
+                departureTime,
+                arrivalTime,
+                busId: bus.id,
+            };
+        });
+        await this.prisma.trip.createMany({ data: payload });
+    }
     getSeatCapacity(busType) {
         const match = busType.match(/(\d+)/);
         if (match) {
@@ -43,6 +152,7 @@ let TripService = class TripService {
         });
     }
     async findAll(date) {
+        await this.ensureDailyTrips();
         const where = date
             ? {
                 departureTime: {
